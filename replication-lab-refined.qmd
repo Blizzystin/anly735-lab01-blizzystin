@@ -1,0 +1,340 @@
+---
+title: "Replication Laboratory #1"
+subtitle: "Evaluation Design Matters"
+author: "Arvind Natarajan"
+format:
+  docx:
+    toc: true
+    number-sections: true
+    reference-links: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Laboratory Question
+
+> **Does changing the evaluation design change estimated predictive performance, and does it change which model appears stronger?**
+
+In this laboratory, I investigate how a seemingly simple methodological choice, how observations are divided into training and testing data, can materially affect the evidence produced by a predictive model.
+
+The same prediction problem is evaluated using the same dataset, predictors, models, preprocessing logic, and performance metrics under two different designs:
+
+1. **Random evaluation** - training and testing observations are sampled without preserving temporal order.
+2. **Temporally structured evaluation** - earlier observations are used for training and later observations are reserved for testing.
+
+The purpose is not to establish that one design must always produce better or worse performance. The purpose is to determine what the evidence actually shows and whether the research claim changes when the evaluation design changes.
+
+> **Do not chase a predetermined result. Investigate what the evidence actually supports.**
+
+# Learning Objectives
+
+This laboratory evaluates whether I can:
+
+- distinguish random evaluation from temporally structured evaluation;
+- explain why evaluation design is part of the research design rather than merely a coding decision;
+- compare model performance using **RMSE** and **MAE**;
+- determine whether model ranking is stable across evaluation designs;
+- identify when an apparently strong predictive result depends on the evaluation strategy;
+- assess whether an evaluation design matches the intended deployment scenario;
+- formulate a defensible replication verdict based on evidence; and
+- communicate what the evidence permits me to claim and what it does not.
+
+# Research Context
+
+Predictive performance is not an intrinsic property of a model. It is estimated under a particular evaluation design.
+
+A model that performs well when observations are randomly divided between training and testing sets may perform differently when asked to predict observations that occur later in time. This distinction matters whenever deployment requires a model trained on historical data to make predictions about future cases.
+
+This laboratory therefore treats **evaluation design as an experimental condition**.
+
+The central comparison is:
+
+```text
+                     SAME PREDICTION PROBLEM
+                              |
+                +-------------+-------------+
+                |                           |
+         RANDOM EVALUATION          TEMPORAL EVALUATION
+                |                           |
+        Ridge Regression            Ridge Regression
+        Random Forest               Random Forest
+                |                           |
+           RMSE + MAE                  RMSE + MAE
+                |                           |
+                +-------------+-------------+
+                              |
+                       COMPARE EVIDENCE
+                              |
+                    DOES THE CLAIM CHANGE?
+```
+
+# Dataset
+
+The analysis uses the **UCI Bike Sharing Dataset**, which contains hourly bike-rental observations collected across 2011 and 2012. The reproduced Python workflow contains 17,379 hourly observations spanning January 1, 2011 through December 31, 2012.
+
+The prediction outcome is:
+
+- `cnt` - total number of bike rentals in a given hour.
+
+The analysis uses weather, calendar, and temporal predictors that could reasonably be available at prediction time.
+
+## Variables Used
+
+### Outcome
+
+- `cnt`
+
+### Categorical predictors
+
+- `season`
+- `yr`
+- `mnth`
+- `hr`
+- `holiday`
+- `weekday`
+- `workingday`
+- `weathersit`
+
+### Numeric predictors
+
+- `temp`
+- `atemp`
+- `hum`
+- `windspeed`
+
+## Variables Intentionally Excluded
+
+The following variables are not used as predictors:
+
+- `instant` - row identifier;
+- `dteday` - used to establish chronology rather than as a direct predictor;
+- `casual` - component of the outcome;
+- `registered` - component of the outcome.
+
+The UCI documentation defines `cnt` as the total of casual and registered users. Including either component as a predictor would provide the model with information that is effectively part of the answer and would compromise the legitimacy of the evaluation.
+
+> **Evaluation design matters, but so does information legitimacy.**
+
+# Reproducibility Workflow
+
+The analysis was conducted using the Python track in Google Colab from the course-template repository cloned from GitHub. The analytical script was executed without manually changing the generated results.
+
+The workflow was:
+
+```text
+Course Template
+      ↓
+GitHub Repository
+      ↓
+Clone into Colab
+      ↓
+Run Python Analysis
+      ↓
+Generate analysis/lab01_results.csv
+      ↓
+Complete Quarto Report
+      ↓
+Render to Word
+      ↓
+Review and Revise
+      ↓
+Commit and Push
+      ↓
+Submit .docx in Canvas
+```
+
+# Research Claim
+
+## Your Initial Claim
+
+The prediction problem is to estimate hourly bike-rental demand (`cnt`) from weather, calendar, and temporal information that could reasonably be available when a prediction is made. I would consider one model stronger than another within a given evaluation design if it produces consistently lower out-of-sample RMSE and MAE on the same untouched test observations. My broader claim is that estimated predictive performance is conditional on evaluation design: changing how training and testing observations are separated may materially alter estimated generalization error and may also alter which model appears stronger.
+
+## Replication Strategy
+
+I treat this laboratory as a **partial replication** rather than a direct reproduction of every element of the original Bike Sharing study. The original dataset and prediction context are retained, while the course template fixes two competing model families and deliberately manipulates the train-test separation to isolate a methodological question about evaluation design. This is a meaningful replication strategy because the goal is not to reproduce every modeling choice from the original publication; it is to test whether the evidentiary conclusion about predictive performance is stable when the information structure of evaluation changes.
+
+# Predict Before You Inspect
+
+## Prediction 1 - Estimated Performance
+
+I expect both RMSE and MAE to be higher under temporally structured evaluation than under random evaluation. A random split mixes observations from across the full study period, so the training data are more likely to resemble the test data in calendar period and demand regime. Temporal evaluation is more demanding because the models must learn from earlier observations and generalize to a later period, where demand levels or predictor-outcome relationships may have shifted.
+
+## Prediction 2 - Model Ranking
+
+I expect Random Forest to outperform Ridge Regression under both evaluation designs because hourly bike demand is likely to involve nonlinearities and interactions among weather, hour, season, working-day status, and related predictors that a linear Ridge model cannot represent as flexibly. However, I would not assume that the ranking must remain stable. A more flexible model may also be more sensitive to temporal distribution shift if patterns learned from the training period do not persist.
+
+> These expectations are intended as prior reasoning, not as a target result. The analysis is interpreted according to the evidence actually produced.
+
+# Replicate the Analysis
+
+The Python analysis script was executed from the repository:
+
+```text
+python python/lab01_analysis.py
+```
+
+The script reproducibly acquires the UCI data, establishes chronological order, defines the prediction outcome and predictors, fits the same two models under both evaluation designs, calculates RMSE and MAE, displays the rankings, and writes the analytical evidence to `analysis/lab01_results.csv`.
+
+## Computational Reproducibility and Method
+
+A fixed random seed of **735** and a test proportion of **20%** are used. The same 13,903 training observations and 3,476 test observations are used in size under each design, although their composition differs by design.
+
+Numeric predictors are median-imputed and standardized. Categorical predictors are most-frequent-imputed and one-hot encoded with unknown categories ignored. Importantly, preprocessing is contained within each scikit-learn pipeline and is fitted only on the corresponding training data before being applied to the test set. This prevents preprocessing decisions from using held-out information.
+
+Ridge Regression is estimated with `alpha = 1.0`. Random Forest uses 300 trees, `min_samples_leaf = 2`, `random_state = 735`, and parallel processing through `n_jobs = -1`. Both models are evaluated on untouched test data using RMSE and MAE.
+
+The temporal split uses the earliest 80% of observations for training and the latest 20% for testing. In this run, temporal training ends on August 7, 2012 at 11:00, and the test period begins at 12:00 that day and continues through December 31, 2012.
+
+One residual reproducibility limitation is that the template does not pin exact package versions. The code and stochastic settings are preserved, but an exact future reconstruction could still be affected by changes in Python or scikit-learn behavior across software versions.
+
+# Record Your Results
+
+The generated evidence is:
+
+| Evaluation Design | Model | RMSE | MAE |
+|---|---|---:|---:|
+| Random | Ridge Regression | 100.94 | 74.64 |
+| Random | Random Forest | 52.08 | 32.55 |
+| Temporal | Ridge Regression | 133.91 | 98.87 |
+| Temporal | Random Forest | 84.04 | 56.05 |
+
+# FAIR Model Comparison Audit
+
+## F - Frame
+
+The comparison asks whether Ridge Regression or Random Forest more accurately predicts hourly total bike demand (`cnt`), and whether that conclusion depends on the evaluation design. Across both experiments, the dataset, outcome, predictors, preprocessing rules, model specifications, test proportion, and performance metrics remain fixed. The methodological condition intentionally changed is the construction of the train-test split. Random evaluation samples approximately 80% of observations for training without preserving chronology, whereas temporal evaluation trains on the earliest 80% and evaluates on the latest 20%. The design therefore isolates an important methodological contrast: performance estimated from a temporally mixed holdout versus performance estimated when prediction must move forward in time.
+
+# A - Align
+
+The within-design comparisons are well aligned. Ridge Regression and Random Forest receive the same outcome and predictor information, use the same train-test observations within each design, and are evaluated with the same RMSE and MAE metrics. Both models also use the same preprocessing architecture, and those transformations are fitted only to training observations before being applied to the untouched test set. Randomness is controlled through the fixed seed.
+
+The cross-design comparison intentionally changes the composition of the training and test sets, so the two designs are not expected to represent identical prediction conditions. That is not an accidental confound; it is the experimental condition being investigated. What changes is the information structure of evaluation. Random splitting treats observations as exchangeable across time, whereas temporal splitting preserves the direction from historical evidence to later outcomes.
+
+# I - Inspect
+
+## RMSE
+
+RMSE measures the square root of the average squared prediction error and is expressed here in the same units as hourly bike rentals. Lower RMSE indicates better predictive performance. Because errors are squared before averaging, RMSE gives disproportionate weight to larger misses, making it useful for detecting whether a model occasionally makes particularly consequential demand-prediction errors.
+
+## MAE
+
+MAE measures the average absolute difference between predicted and observed hourly bike rentals. It is also expressed directly in rental counts, so it has a straightforward interpretation as the typical magnitude of prediction error. Lower MAE indicates better performance. Unlike RMSE, MAE does not disproportionately amplify large individual errors, so considering both metrics helps distinguish broad predictive degradation from deterioration driven mainly by a small number of extreme misses.
+
+## Performance Comparison
+
+Random Forest performs better than Ridge Regression under both evaluation designs. Under random evaluation, Random Forest achieves an RMSE of **52.08** and MAE of **32.55**, compared with Ridge Regression at **100.94** and **74.64**. Under temporal evaluation, Random Forest again has lower error, with RMSE of **84.04** and MAE of **56.05**, compared with Ridge Regression at **133.91** and **98.87**.
+
+The more consequential result is how strongly estimated performance changes when chronology is preserved. Ridge RMSE increases by **32.97**, from 100.94 to 133.91, a **32.7% deterioration**. Its MAE increases by **24.23**, or **32.5%**. Random Forest RMSE increases by **31.96**, representing a larger **61.4% deterioration** relative to its random-split baseline. Its MAE increases by **23.50**, or **72.2%**.
+
+Thus, in percentage terms, Random Forest is more sensitive to the evaluation change even though it remains the stronger model. Its RMSE advantage over Ridge also narrows from approximately **48.4% under random evaluation to 37.2% under temporal evaluation**. The important point is therefore not merely that error rises. Evaluation design changes the estimated magnitude of Random Forest's advantage as well.
+
+Because both RMSE and MAE deteriorate substantially, the temporal-performance decline does not appear to be explained only by a handful of unusually large errors. The evidence is more consistent with a broader loss of predictive accuracy in the later holdout period.
+
+# R - Review
+
+## Conclusion About Model Ranking
+
+The model-ranking conclusion is stable. Random Forest has lower RMSE and MAE than Ridge Regression under both random and temporal evaluation, so changing the evaluation design does **not** reverse which model ranks first in this experiment. However, ranking stability should not be confused with performance stability. The size of Random Forest's advantage becomes smaller under temporal evaluation.
+
+## Conclusion About Expected Predictive Performance
+
+The conclusion about expected predictive performance changes materially. Both models appear substantially more accurate under random evaluation than under temporal evaluation. Reporting only the random-split results would therefore give a considerably more optimistic estimate of how well either model performs when trained on earlier observations and evaluated on later ones.
+
+This demonstrates why predictive performance should not be treated as an intrinsic attribute of a fitted algorithm. It is an estimate produced under a particular evaluation design.
+
+## Conclusion About Deployment
+
+Temporal evaluation better represents a deployment scenario in which a model is trained on historical observations and then used to predict future observations. It preserves the direction of information available in practice: later observations cannot influence model fitting or preprocessing for an earlier deployment decision. Random evaluation answers a different question, one closer to how accurately the model predicts held-out observations drawn from the overall historical mixture. That may be appropriate for some estimands, but it is less faithful when the intended use involves forward prediction through time.
+
+# Diagnose the Difference
+
+The performance gap is plausible because the two designs expose the models to fundamentally different generalization problems. Random evaluation mixes observations from across 2011 and 2012 between training and testing. Consequently, the training set can contain observations from periods later than some test observations and can represent much of the same temporal mixture as the test set. The resulting estimate is therefore closer to interpolation within the observed historical distribution.
+
+Temporal evaluation removes that advantage. The model is trained only through August 7, 2012 and then tested on subsequent observations through December 31, 2012. This creates a forward-generalization problem in which changes in the level or structure of bike demand can matter. The dataset contains strong calendar and weather structure, but seasonal recurrence does not imply complete stationarity. Demand may change over time because of broader usage growth, behavioral change, or shifts in how weather and calendar conditions translate into rentals.
+
+A further nuance is that the models receive `yr`, month, hour, season, weather, and related predictors, but they do not receive the continuous date itself as a direct predictive feature. The model can therefore learn coarse year and seasonal effects without explicitly representing an unrestricted temporal trend. If late-2012 demand differs systematically from earlier demand, temporal evaluation can expose that limitation.
+
+The evidence does not identify which mechanism caused the degradation. Seasonality, trend, distribution shift, and changing predictor-outcome relationships may each contribute. What the experiment does establish is that the random split produced an appreciably more favorable estimate for both models. The evaluation design therefore changes the empirical answer to the question, "How well should I expect this model to predict?"
+
+# Reconsider the Original Claim
+
+## Revised Claim
+
+For this UCI hourly bike-demand prediction problem, Random Forest demonstrates stronger **relative performance** than Ridge Regression under both random and temporally structured evaluation, as measured by RMSE and MAE. However, the **absolute estimate of predictive performance is strongly evaluation-dependent**: both models incur substantially greater error when evaluated on later observations, and the apparent magnitude of Random Forest's advantage also narrows. Model ranking is therefore robust to this particular evaluation change, whereas estimated generalization performance is not.
+
+# Replication Verdict
+
+## Verdict
+
+**Selected verdict: Reproduced**
+
+## Defense of Verdict
+
+The evidence reproduces the central methodological claim that evaluation design can materially alter estimated predictive performance even when the identity of the stronger model remains unchanged. Random Forest ranked first under both conditions, with lower RMSE and MAE than Ridge Regression. That relative result was stable. The estimated level of performance, however, was not. Ridge RMSE increased from 100.94 to 133.91 and MAE from 74.64 to 98.87 when moving from random to temporal evaluation. Random Forest showed an even larger proportional deterioration, with RMSE increasing from 52.08 to 84.04 and MAE from 32.55 to 56.05.
+
+The evidence therefore supports the claim that evaluation procedure is substantively part of the predictive-performance estimate rather than a neutral implementation detail. It also demonstrates why model ranking and performance level must be evaluated separately: Random Forest remained first, yet its estimated error worsened considerably and its advantage over Ridge narrowed.
+
+The verdict remains bounded by the design. This laboratory uses one dataset, two model specifications, one random split, and one temporal cutoff. It demonstrates that evaluation design mattered **here**; it does not establish that temporal evaluation must always produce larger errors or that model rankings cannot reverse in other datasets, model classes, or time periods.
+
+# Extension - What Would You Test Next?
+
+A defensible next step would be an **expanding-window temporal evaluation with multiple sequential test periods**. Instead of relying on a single cutoff, I would begin with an initial historical training window, evaluate the models on the next fixed period, expand the training window to include newly observed data, and repeat this process across several later periods while retaining the same predictors, preprocessing, models, RMSE, and MAE.
+
+This extension matters because the current temporal result is based on one particular boundary in August 2012. Its larger error could reflect a persistent limitation in forward generalization, but it could also be unusually influenced by the conditions occurring in that specific holdout period. Repeated forward evaluations would reveal the distribution and stability of each model's performance over time rather than reducing temporal generalization to a single point estimate.
+
+The resulting evidence could address a stronger question: **Is Random Forest's advantage over Ridge stable across multiple future prediction windows, and is the optimism of random evaluation systematic rather than cutoff-specific?** If Random Forest remained superior while both models repeatedly showed poorer forward performance, the evidence for evaluation-design sensitivity would become substantially more general and defensible. If rankings varied across windows, that would instead reveal temporal instability hidden by the single-split comparison.
+
+# Claim Boundary
+
+## What the Evidence Supports
+
+> Based on this laboratory, the evidence supports the claim that, for this dataset and these two model specifications, Random Forest produces lower RMSE and MAE than Ridge Regression under both random and temporal evaluation, while temporally structured evaluation yields substantially less optimistic estimates of predictive performance for both models.
+
+## What the Evidence Does Not Support
+
+> Based on this laboratory, the evidence does not support the claim that Random Forest is universally superior to Ridge Regression, that temporal evaluation will always produce higher error, that a random split is inherently invalid for every prediction problem, or that the observed performance differences can be causally attributed to any single source such as seasonality or distribution shift. The experiment also does not establish performance stability across alternative temporal cutoffs, datasets, model hyperparameters, or future deployment periods.
+
+# Researcher Takeaway
+
+Evaluation design is part of the empirical claim, not a procedural afterthought: changing the information structure of the train-test split can materially change the performance a researcher believes a model will achieve. A stable model ranking does not imply a stable estimate of generalization, so credible predictive comparisons must align the evaluation design with the way information will actually become available at deployment.
+
+# Reproducibility Check
+
+Before submitting, confirm each item.
+
+- [ ] I created my repository from the official ANLY 735 template.
+- [ ] I used either the Python or R analysis track.
+- [ ] I ran the analysis successfully.
+- [ ] I did not manually alter results.
+- [ ] I recorded RMSE and MAE from my own analysis.
+- [ ] I compared both evaluation designs.
+- [ ] I completed the FAIR Model Comparison Audit.
+- [ ] I provided a replication verdict supported by evidence.
+- [ ] I distinguished model ranking from estimated predictive performance.
+- [ ] I proposed a defensible extension.
+- [ ] I rendered this Quarto document to Word.
+- [ ] I reviewed the rendered document before submission.
+- [ ] I committed and pushed my completed source files to GitHub.
+- [ ] I submitted the final `.docx` file in Canvas.
+
+# Submission Requirements
+
+Submit the **rendered Word document (`.docx`)** to Canvas.
+
+The GitHub repository serves as the reproducibility record for the analysis, code, Quarto source, generated evidence, and research decisions.
+
+Unless the instructor explicitly requests otherwise, raw scripts do not need to be submitted separately in Canvas.
+
+# Evaluation
+
+This laboratory is worth **20 points**. The report is designed to make the analytical workflow, evidence-based comparison, FAIR audit, reasoning about evaluation design, replication verdict, claim boundaries, and proposed extension explicit and reproducible.
+
+> **Do not chase identical numbers. Investigate reproducibility.**
+
+# References
+
+Fanaee-T, H., & Gama, J. (2014). Event labeling combining ensemble detectors and background knowledge. *Progress in Artificial Intelligence, 2*, 113-127. https://doi.org/10.1007/s13748-013-0040-3
+
+UCI Machine Learning Repository. (n.d.). *Bike Sharing dataset*. https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset
